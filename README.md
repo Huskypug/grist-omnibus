@@ -3,6 +3,16 @@ Grist Omnibus Fork
 
 fork of original [version](https://github.com/gristlabs/grist-omnibus)
 
+## Key difference
+
+Implemented solution for [automatically adding users to organization](https://community.getgrist.com/t/automatically-add-new-users-to-an-organization/2001).
+Tested only with LDAP configuration, Google and Microsoft auth should work as well.
+
+Core idea:
+1. Modified golang script between grist and dex to catch email from auth provider
+2. Using Grist Api check if the email is a part of the organization
+3. If not then add new User via Api to organization with editor permissions
+
 ## Configuration description
 
 Here's the minimal configuration you need to provide.
@@ -26,7 +36,6 @@ Here's the minimal configuration you need to provide.
    with ssl termination yourself after all, or `manual` if you want
    to provide a certificate you've prepared yourself (there's an
    example below).
- * `GRIST_ENABLE_SCIM` - should be set to `true`
  * `GAPI_KEY` - api key for admin user for auto adding new users to organization.
     Should be added after the first startup and login for admin user. See instructions bellow
 
@@ -52,7 +61,6 @@ docker run \
   -e TEAM=cool-beans \
   -e EMAIL=owner@example.com \
   -e PASSWORD=topsecret \
-  -e GRIST_ENABLE_SCIM=true \
   -v $PWD/persist:/persist \
   -v $PWD/dex.yaml:/custom/dex.yaml \
   --name grist --rm \
