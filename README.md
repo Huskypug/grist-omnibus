@@ -1,32 +1,9 @@
-Grist Omnibus
+Grist Omnibus Fork
 =============
 
-This is an experimental way to install Grist on a server
-quickly with authentication and certificate handling set up
-out of the box. Grist Labs also has [marketplace offerings](https://support.getgrist.com/install/grist-builder-edition/)
-for [AWS](https://support.getgrist.com/install/grist-builder-edition/#aws) and [Azure](https://support.getgrist.com/install/grist-builder-edition/#azure).
+fork of original [version](https://github.com/gristlabs/grist-omnibus)
 
-So you and your colleagues can log in:
-![Screenshot from 2022-08-16 18-14-16](https://user-images.githubusercontent.com/118367/184994955-df9359d6-86b3-4147-9214-058b2c8c5fe7.png)
-
-And use Grist without fuss:
-![Screenshot from 2022-08-16 18-16-38](https://user-images.githubusercontent.com/118367/184995003-aa4ae6e7-6a05-420f-98a8-36b465bc2a81.png)
-
-It bundles:
-
- * Grist itself from [grist-core](https://github.com/gristlabs/grist-core/) -
-   Grist is a handy spreadsheet / online database app,
-   presumably you like it and that's why you are here.
- * A reverse proxy, [Traefik](https://github.com/traefik/traefik) -
-   we use this to coordinate with Let's Encrypt to get a
-   certificate for https traffic.
- * An identity service, [Dex](https://github.com/dexidp/dex/) -
-   this can connect to LDAP servers, SAML providers, Google,
-   Microsoft, etc, and also (somewhat reluctantly) supports
-   hard-coded user/passwords that can be handy for a quick
-   fuss-free test.
- * An authentication middleware, [traefik-forward-auth](https://github.com/thomseddon/traefik-forward-auth) to
-   connect Grist and Dex via Traefik.
+## Configuration description
 
 Here's the minimal configuration you need to provide.
  * `EMAIL`: an email address, used for Let's Encrypt and for
@@ -49,75 +26,53 @@ Here's the minimal configuration you need to provide.
    with ssl termination yourself after all, or `manual` if you want
    to provide a certificate you've prepared yourself (there's an
    example below).
+ * `GRIST_ENABLE_SCIM` - should be set to `true`
+ * `GAPI_KEY` - api key for admin user for auto adding new users to organization.
+    Should be added after the first startup and login for admin user. See instructions bellow
+
 
 The minimal storage needed is an empty directory mounted
 at `/persist`.
 
-So here is a complete docker invocation that would work on a public
-instance with ports 80 and 443 available:
+## Install
+1. Clone repo & build image
+```bash
+git clone https://github.com/Huskypug/grist-omnibus.git
+cd grist-omnibus
+docker build -t grist-custom:latest .
+cd ..
 ```
-mkdir -p /tmp/grist-test
-docker run \
-  -p 80:80 -p 443:443 \
-  -e URL=https://cool-beans.example.com \
-  -e HTTPS=auto \
-  -e TEAM=cool-beans \
-  -e EMAIL=owner@example.com \
-  -e PASSWORD=topsecret \
-  -v /tmp/grist-test:/persist \
-  --name grist --rm \
-  -it gristlabs/grist-omnibus  # or grist-ee-omnibus for enterprise
-```
-
-And here is an invocation on localhost port 9999 - the only
-differences are the `-p` port configuration and the `-e URL=` environment
-variable.
-```
-mkdir -p /tmp/grist-test
+2. Create dex.yaml based on example from this repo and start for the first time
+```bash
+touch dex.yaml
+mkdir persist
 docker run \
   -p 9999:80 \
   -e URL=http://localhost:9999 \
   -e TEAM=cool-beans \
   -e EMAIL=owner@example.com \
   -e PASSWORD=topsecret \
-  -v /tmp/grist-test:/persist \
-  --name grist --rm \
-  -it gristlabs/grist-omnibus  # or grist-ee-omnibus for enterprise
-```
-
-If providing your own certificate (`HTTPS=manual`), provide a
-private key and certificate file as `/custom/grist.key` and
-`custom/grist.crt` respectively:
-
-```
-docker run \
-  ...
-  -e HTTPS=manual \
-  -v $(PWD)/key.pem:/custom/grist.key \
-  -v $(PWD)/cert.pem:/custom/grist.crt \
-  ...
-```
-
-Remember if you are on a public server you don't need to do this, you can
-set `HTTPS=auto` and have Traefik + Let's Encrypt do the work for you.
-
-If you run the omnibus behind a separate reverse proxy that terminates SSL, then you should
-`HTTPS=external`, and set an additional environment variable `TRUSTED_PROXY_IPS` to the IP
-address or IP range of the proxy. This may be a comma-separated list, e.g.
-`127.0.0.1/32,192.168.1.7`. See Traefik's [forwarded
-headers](https://doc.traefik.io/traefik/routing/entrypoints/#forwarded-headers).
-
-You can change `dex.yaml` (for example, to fill in keys for Google
-and Microsoft sign-ins, or to remove them) and then either rebuild
-the image or (easier) make the custom settings available to the omnibus
-as `/custom/dex.yaml`:
-
-```
-docker run \
-  ...
+  -e GRIST_ENABLE_SCIM=true \
+  -v $PWD/persist:/persist \
   -v $PWD/dex.yaml:/custom/dex.yaml \
-  ...
+  --name grist --rm \
+  -it grist-custom:latest
+```
+3. login as owner@example.com:topsecret via "Log in with Email"
+4. Profile settings -> save API Key
+5. Add api key to run command and run in detached mode
+```bash
+docker run -d \
+  -p 9999:80 \
+  -e URL=http://localhost:9999 \
+  -e TEAM=cool-beans \
+  -e EMAIL=owner@example.com \
+  -e PASSWORD=topsecret \
+  -e GRIST_ENABLE_SCIM=true \
+  -e GAPI_KEY=<key here> \
+  -v $PWD/persist:/persist \
+  -v $PWD/dex.yaml:/custom/dex.yaml \
+  --name grist --rm \
+  -it grist-custom:latest
 ```
 
-You can tell it is being used because `Using /custom/dex.yaml` will
-be printed instead of `No /custom/dex.yaml`.

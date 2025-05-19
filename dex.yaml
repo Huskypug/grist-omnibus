@@ -67,6 +67,6 @@ connectors:
         nameAttr: cn
 enablePasswordDB: true
 staticPasswords:
-  - email: "admin@hflabs.ru"
+  - email: "owner@example.com"
     # bcrypt hash (topsecret) https://www.browserling.com/tools/bcrypt
     hash: "$2a$10$egTggRIvo39Itea2R4ar/eATMN7Jkq5Eua5kKHv1o0la4UrF3A2O."
