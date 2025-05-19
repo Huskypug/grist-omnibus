@@ -17,31 +17,56 @@ frontend:
   logoURL: '{{ getenv "APP_HOME_URL" }}/v/unknown/ui-icons/Logo/GristLogo.svg'
 
 staticClients:
-- id: '{{ getenv "PROVIDERS_OIDC_CLIENT_ID" }}'
-  redirectURIs:
-  - '{{ getenv "APP_HOME_URL" }}/_oauth'
-  name: 'Grist'
-  secret: '{{ getenv "PROVIDERS_OIDC_CLIENT_SECRET" }}'
-
+  - id: '{{ getenv "PROVIDERS_OIDC_CLIENT_ID" }}'
+    redirectURIs:
+      - '{{ getenv "APP_HOME_URL" }}/_oauth'
+    name: 'Grist'
+    secret: '{{ getenv "PROVIDERS_OIDC_CLIENT_SECRET" }}'
 
 oauth2:
   skipApprovalScreen: true
 
 connectors:
+  - type: ldap
+    name: OpenLDAP
+    id: ldap
+    config:
+      # The following configurations seem to work with OpenLDAP:
+      #
+      # 1) Plain LDAP, without TLS:
+      host: localhost:389
+      insecureNoSSL: true
+      #
+      # 2) LDAPS without certificate validation:
+      #host: localhost:636
+      #insecureNoSSL: false
+      #insecureSkipVerify: true
+      #
+      # 3) LDAPS with certificate validation:
+      #host: YOUR-HOSTNAME:636
+      #insecureNoSSL: false
+      #insecureSkipVerify: false
+      #rootCAData: 'CERT'
+      # ...where CERT="$( base64 -w 0 your-cert.crt )"
 
- - type: google
-   id: google
-   name: Google
-   config:
-     issuer: https://accounts.google.com
-     clientID: PUT_CLIENT_ID_HERE_PLEASE
-     clientSecret: PUT_GOOGLE_CLIENT_SECRET_HERE_PLEASE
-     redirectURI: '{{ getenv "APP_HOME_URL" }}/dex/callback'
+      # This would normally be a read-only user.
+      bindDN: cn=admin,dc=example,dc=org
+      bindPW: admin
 
- - type: microsoft
-   id: microsoft
-   name: Microsoft
-   config:
-     clientID: PUT_CLIENT_ID_HERE_PLEASE
-     clientSecret: PUT_CLIENT_SECRET_HERE_PLEASE
-     redirectURI: '{{ getenv "APP_HOME_URL" }}/dex/callback'
+      usernamePrompt: email
+
+      userSearch:
+        baseDN: ou=People,dc=example,dc=org
+        filter: "(objectClass=person)"
+        username: mail
+        # "DN" (case sensitive) is a special attribute name. It indicates that
+        # this value should be taken from the entity's DN not an attribute on
+        # the entity.
+        idAttr: DN
+        emailAttr: mail
+        nameAttr: cn
+enablePasswordDB: true
+staticPasswords:
+  - email: "admin@hflabs.ru"
+    # bcrypt hash (topsecret) https://www.browserling.com/tools/bcrypt
+    hash: "$2a$10$egTggRIvo39Itea2R4ar/eATMN7Jkq5Eua5kKHv1o0la4UrF3A2O."

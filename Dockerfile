@@ -14,19 +14,18 @@ FROM traefik/whoami as whoami
 
 # recent public traefik-forward-auth image doesn't support arm,
 # so build it from scratch.
-FROM golang:1.13-alpine as fwd
-RUN mkdir -p /go/src/github.com/thomseddon/traefik-forward-auth
-WORKDIR /go/src/github.com/thomseddon/traefik-forward-auth
+FROM golang:1.23-alpine as fwd
+RUN mkdir -p /go/src/github.com/Huskypug/traefik-forward-auth
+WORKDIR /go/src/github.com/Huskypug/traefik-forward-auth
 RUN apk add --no-cache git
-RUN mkdir -p /go/src/github.com/thomseddon/
-RUN cd /go/src/github.com/thomseddon/ && \
-  git clone https://github.com/thomseddon/traefik-forward-auth.git && \
-  cd traefik-forward-auth && \
-  git checkout c4317b7503fb0528d002eb1e5ee43c4a37f055d0
+RUN mkdir -p /go/src/github.com/Huskypug/
+RUN cd /go/src/github.com/Huskypug/ && \
+  git clone https://github.com/Huskypug/traefik-forward-auth.git && \
+  cd traefik-forward-auth
 ARG TARGETOS TARGETARCH
 RUN echo "Compiling for [$TARGETOS $TARGETARCH] (will be blank if not using BuildKit)"
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -installsuffix nocgo \
-  -o /traefik-forward-auth github.com/thomseddon/traefik-forward-auth/cmd
+  -o /traefik-forward-auth github.com/Huskypug/traefik-forward-auth/cmd
 
 # Extend Grist image.
 FROM $BASE as merge

@@ -134,7 +134,11 @@ function startDex() {
 function startTfa() {
   log.info('Starting traefik-forward-auth');
   essentialProcess("traefik-forward-auth", child_process.spawn('traefik-forward-auth', [
-    `--port=${process.env.TFA_PORT}`
+    `--port=${process.env.TFA_PORT}`,
+    `--g-port=${process.env.GRIST_PORT}`,
+    `--g-org=${process.env.TEAM}`,
+    `--g-key=${process.env.GAPI_KEY}`,
+    `--g-admin=${process.env.EMAIL}`
   ], {
     env: process.env,
     stdio: 'inherit',
@@ -358,7 +362,7 @@ function prepareCertificateSettings() {
       throw new Error(`HTTPS environment variable must be set to: auto, external, or manual.`);
     }
     const tls = (https === 'auto') ? '{ certResolver: letsencrypt }' :
-          (https === 'manual') ? 'true' : 'false';
+        (https === 'manual') ? 'true' : 'false';
     process.env.TLS = tls;
     process.env.USE_HTTPS = 'true';
   }
