@@ -3,7 +3,7 @@
 # Grist doesn't have a built-in login system, which can be
 # a stumbling block for beginners or people just wanting to
 # try it out.
-# Includes bundled traefik, traefik-forward-auth, and dex.
+# Includes bundled traefik and dex.
 
 ARG BASE=gristlabs/grist:latest
 
@@ -28,7 +28,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -
   -o /traefik-forward-auth github.com/Huskypug/traefik-forward-auth/cmd
 
 # Extend Grist image.
-FROM $BASE as merge
+FROM $BASE AS merge
 
 # Enable sandboxing by default. It is generally important when sharing with
 # others. You may override it, e.g. "unsandboxed" uses no sandboxing but is
@@ -74,6 +74,6 @@ RUN ln -s /custom/grist.crt /etc/ssl/certs/grist.pem
 # FROM scratch
 # COPY --from=merge / /
 
-CMD /grist/run.js
+CMD ["/grist/run.js"]
 
 EXPOSE 80 443
