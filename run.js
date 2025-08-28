@@ -26,6 +26,7 @@ async function main() {
   startTraefik();
   startWho();
   startDex();
+  startMiddleware(); // ADDED: Start the new middleware service
 
   await sleep(1000);
   log.info('I think everything has started up now');
@@ -46,6 +47,21 @@ function essentialProcess(label, childProcess) {
   }
   childProcess.on('error', (err) => fail(err));
   childProcess.on('exit', (code, signal) => fail(new Error(`exited with ${signal || code}`)));
+}
+
+// ADDED: Function to start the middleware
+function startMiddleware() {
+  if (!process.env.GRIST_API_KEY) {
+    log.warn('GRIST_API_KEY is not set. The org verification middleware will not start.');
+    log.warn('Logins will NOT be checked against the Grist organization.');
+    return;
+  }
+  essentialProcess("middleware", child_process.spawn('node', ['/settings/middleware.js'], {
+    env: process.env, // Pass all env vars to the middleware script
+    stdio: 'inherit',
+    detached: true,
+  }));
+  log.info("start Middleware");
 }
 
 function startGrist() {
@@ -161,6 +177,7 @@ function prepareNetworkSettings() {
   const alt = String(process.env.DEX_PORT).charAt(0) === '1' ? '2' : '1';
   process.env.GRIST_PORT = `${alt}7100`;
   process.env.WHOAMI_PORT = `${alt}7101`;
+  process.env.MIDDLEWARE_PORT = `${alt}7102`; // ADDED: Port for the new middleware
 
   // Setup OIDC
   process.env.GRIST_OIDC_SP_HOST = process.env.APP_HOME_URL;
@@ -273,7 +290,7 @@ function prepareCertificateSettings() {
     }
 
     const tls = (https === 'auto') ? '{ certResolver: letsencrypt }' :
-          (https === 'manual') ? 'true' : 'false';
+        (https === 'manual') ? 'true' : 'false';
     process.env.TLS = tls;
     process.env.USE_HTTPS = 'true';
   }

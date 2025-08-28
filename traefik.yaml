@@ -12,6 +12,11 @@ http:
       loadBalancer:
         servers:
           - url: 'http://127.0.0.1:{{ env "WHOAMI_PORT" }}'
+    # ADDED: Define the middleware service
+    middleware:
+      loadBalancer:
+        servers:
+          - url: 'http://127.0.0.1:{{ env "MIDDLEWARE_PORT" }}'
 
   middlewares:
     no-fwd:
@@ -20,7 +25,19 @@ http:
           '{{ env "GRIST_FORWARD_AUTH_HEADER" }}': ""
 
   routers:
+    {{ $api_key := env "GRIST_API_KEY" }}
+    {{if ne $api_key ""}}
+    route-middleware-callback:
+      rule: 'PathPrefix(`/o/{{ env "GRIST_SINGLE_ORG" }}/api/session/access/active`)'
+      priority: 10
+      service: middleware
+      entryPoints:
+        - web
+    {{ end }}
+
     route-grist-login:
+      # This rule still catches /auth/login and /_oauth, but the callback
+      # is now handled by the middleware router due to its higher priority.
       rule: "PathPrefix(`/auth/login`) || PathPrefix(`/_oauth`)"
       service: grist
       entryPoints:
@@ -47,47 +64,59 @@ http:
       entryPoints:
         - web
 
-{{ $use_https := env "USE_HTTPS" }}
-{{if eq $use_https "true" }}
-    https-route-grist-login:
-      rule: "Host(`{{ env "APP_HOST" }}`) && (PathPrefix(`/auth/login`) || PathPrefix(`/_oauth`))"
-      service: grist
-      entryPoints:
-        - websecure
-      tls: {{ env "TLS" }}
+  {{ $use_https := env "USE_HTTPS" }}
+  {{if eq $use_https "true" }}
+# ADDED: The HTTPS version of the middleware router
+https-route-middleware-callback:
+  { { $api_key := env "GRIST_API_KEY" } }
+  {{if ne $api_key ""}}
+  rule: 'Host(`{{ env "APP_HOST" }}`) && PathPrefix(`/o/{{ env "GRIST_SINGLE_ORG" }}/api/session/access/active`)'
+  priority: 10
+  service: middleware
+  entryPoints:
+    - websecure
+  tls: {{ env "TLS" }}
+  {{ end }}
 
-    https-route-grist:
-      rule: "Host(`{{ env "APP_HOST" }}`) && PathPrefix(`/`)"
-      priority: 1   # Set a lower priority than the other rules
-      service: grist
-      middlewares:
-        - no-fwd
-      entryPoints:
-        - websecure
-      tls: {{ env "TLS" }}
+https-route-grist-login:
+  rule: 'Host(`{{ env "APP_HOST" }}`) && (PathPrefix(`/auth/login`) || PathPrefix(`/_oauth`))'
+  service: grist
+  entryPoints:
+    - websecure
+  tls: {{ env "TLS" }}
 
-    https-route-dex:
-      rule: "Host(`{{ env "APP_HOST" }}`) && (PathPrefix(`/dex/`) || Path(`/dex`))"
-      service: dex
-      entryPoints:
-        - websecure
-      tls: {{ env "TLS" }}
+https-route-grist:
+  rule: 'Host(`{{ env "APP_HOST" }}`) && PathPrefix(`/`)'
+  priority: 1   # Set a lower priority than the other rules
+  service: grist
+  middlewares:
+    - no-fwd
+  entryPoints:
+    - websecure
+  tls: {{ env "TLS" }}
 
-    https-route-who:
-      rule: "Host(`{{ env "APP_HOST" }}`) && Path(`/who`)"
-      service: whoami
-      entryPoints:
-        - websecure
-      tls: true
-{{end}}
+https-route-dex:
+  rule: 'Host(`{{ env "APP_HOST" }}`) && (PathPrefix(`/dex/`) || Path(`/dex`))'
+  service: dex
+  entryPoints:
+    - websecure
+  tls: {{ env "TLS" }}
+
+https-route-who:
+  rule: 'Host(`{{ env "APP_HOST" }}`) && Path(`/who`)'
+  service: whoami
+  entryPoints:
+    - websecure
+  tls: true
+  {{end}}
 
 
-{{ $https := env "HTTPS" }}
-{{if eq $https "manual"}}
+  {{ $https := env "HTTPS" }}
+  {{if eq $https "manual"}}
 tls:
   stores:
     default:
       defaultCertificate:
         certFile: /custom/grist.crt
         keyFile: /custom/grist.key
-{{end}}
+  {{end}}

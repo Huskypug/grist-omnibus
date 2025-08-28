@@ -3,7 +3,7 @@ TEAM = cool-beans
 
 # Possible bases: gristlabs/grist, or gristlabs/grist-ee
 BASE = gristlabs/grist
-IMAGE = $(BASE)-omnibus
+IMAGE = $(BASE)-omnibus-custom
 
 build:
 	docker build --build-arg BASE=$(BASE) -t $(IMAGE) .
